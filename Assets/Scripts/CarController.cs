@@ -48,10 +48,7 @@ public class CarController : MonoBehaviour {
         frontRightWheel.motorTorque = verticalInput * torqueMultiplier;
 
         currentBrakeForce = isBraking ? brakeForce : 0f;
-
-        if (isBraking) {
-            ApplyBrakingForce();
-        }
+        ApplyBrakingForce();
 
     }
 
