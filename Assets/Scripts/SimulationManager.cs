@@ -23,7 +23,7 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] GameObject carAgentObj;
     [SerializeField] BoxCollider carCollider;
     private Vector3 carStartPosition;
-    private CarAgent carAgent;
+    [HideInInspector] public CarAgent carAgent;
     private CarController carController;
     private Rigidbody carRigidbody;
     private RayPerceptionSensor[] carRays;
