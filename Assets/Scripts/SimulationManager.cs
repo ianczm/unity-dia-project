@@ -33,6 +33,7 @@ public class SimulationManager : MonoBehaviour {
     private Vector3 carStartPosition;
     private Quaternion carStartRotation;
     [HideInInspector] public CarAgent carAgent;
+    private Rigidbody carRigidbody;
     private CarController carController;
     private BehaviorParameters behaviorParameters;
 
@@ -69,6 +70,10 @@ public class SimulationManager : MonoBehaviour {
     [HideInInspector] public bool hasBeenWithinBounds;
 
     [SerializeField] private float maxAlignmentReward = 2.5f; // based on how parallel the car is
+
+    [HideInInspector] public float velocityReward = 0f;
+    [SerializeField] private float maxVelocityReward = 2.5f;
+    [SerializeField] private float velocityMultiplier = 0.0002f; // greater here means slower is encouraged velocity
 
     // =====================================================
 
@@ -131,6 +136,7 @@ public class SimulationManager : MonoBehaviour {
         // populating components
         carAgent = carAgentObj.GetComponent<CarAgent>();
         carController = carAgentObj.GetComponent<CarController>();
+        carRigidbody = carAgentObj.GetComponent<Rigidbody>();
         carStartPosition = carAgentObj.transform.position;
         carStartRotation = carAgentObj.transform.rotation;
 
@@ -161,6 +167,7 @@ public class SimulationManager : MonoBehaviour {
         isEnteringGoal = false;
         isOffroad = false;
         validParkingTimer = 0;
+        velocityReward = 0;
     }
 
     private void ResetParkingLots() {
@@ -189,10 +196,10 @@ public class SimulationManager : MonoBehaviour {
 
         if (randomAgentSpawn) {
             Quaternion rotation = Quaternion.identity;
-            rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
-            carAgentObj.transform.SetLocalPositionAndRotation(GetCarStartPosition(), rotation);
+            rotation.eulerAngles = new Vector3(0, Random.Range(-45, 45), 0);
+            carAgentObj.transform.SetPositionAndRotation(GetCarStartPosition(), rotation);
         } else {
-            carAgentObj.transform.SetLocalPositionAndRotation(carStartPosition, carStartRotation);
+            carAgentObj.transform.SetPositionAndRotation(carStartPosition, carStartRotation);
         }
         
     }
@@ -216,6 +223,12 @@ public class SimulationManager : MonoBehaviour {
     }
 
     private void FixedUpdate() {
+
+        // encourage movement
+        float velocity = carRigidbody.velocity.magnitude;
+        velocityReward = Mathf.Min(maxVelocityReward / maxSteps, velocity * velocityMultiplier);
+        carAgent.AddReward(velocityReward);
+
         // spotted goal (event driven instead?)
         if (!hasSpottedGoal && IsSpottingGoal()) {
             hasSpottedGoal = true;
@@ -270,6 +283,10 @@ public class SimulationManager : MonoBehaviour {
     }
 
     // Game Calculations =====================================================
+
+    public float GetCarVelocity() {
+        return carRigidbody.velocity.magnitude;
+    }
 
     private Vector3 GetCarStartPosition() {
         Bounds bounds = spawnRegion.bounds;

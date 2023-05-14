@@ -31,6 +31,9 @@ public class UIVariables : MonoBehaviour
     private float angleDifference;
     private float alignmentReward;
 
+    private float velocity;
+    private float velocityReward;
+
     private void UpdateFields() {
 
         reward = sm.carAgent.GetCumulativeReward();
@@ -53,6 +56,9 @@ public class UIVariables : MonoBehaviour
         float angleInDegrees = Mathf.Rad2Deg * sm.GetGoalAngleDifference();
         angleDifference = getAcuteDegrees(angleInDegrees);
         alignmentReward = sm.CalculateAlignmentReward();
+
+        velocity = sm.GetCarVelocity();
+        velocityReward = sm.velocityReward;
     }
 
     private float getAcuteDegrees(float deg) { 
@@ -82,7 +88,10 @@ public class UIVariables : MonoBehaviour
         sb.AppendLineFormat($"GoalDistanceReward(): {goalDistanceReward:0.00}\n");
 
         sb.AppendLineFormat($"GetGoalAngleDifference(): {angleDifference:0.00}");
-        sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}");
+        sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}\n");
+
+        sb.AppendLineFormat($"Velocity: {velocity:0.00}");
+        sb.AppendLineFormat($"VelocityReward(): {velocityReward:0.0000}");
 
         output.text = sb.ToString();
     }
