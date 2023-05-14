@@ -18,23 +18,39 @@ public class SimulationManager : MonoBehaviour {
 
     // =====================================================
 
+    [Header("Under Development")]
+
+    [SerializeField] private bool randomSpawnCars = false;
+    [SerializeField] private float spaceBetweenCars = 10f;
+    [SerializeField] private int numSlots = 12; // including goal
+
+    // =====================================================
+
     [Header("Simulation")]
 
-    [SerializeField] GameObject carAgentObj;
-    [SerializeField] BoxCollider carCollider;
+    [SerializeField] private GameObject carAgentObj;
+    [SerializeField] private BoxCollider carCollider;
     private Vector3 carStartPosition;
+    private Quaternion carStartRotation;
     [HideInInspector] public CarAgent carAgent;
     private CarController carController;
-    private Rigidbody carRigidbody;
-    private RayPerceptionSensor[] carRays;
-    private RayPerceptionSensorComponent3D[] carRayComponent;
     private BehaviorParameters behaviorParameters;
 
-    [SerializeField] GameObject roadObj;
-    [SerializeField] MeshCollider spawnRegion;
+    [SerializeField] private GameObject roadObj;
+    [SerializeField] private MeshCollider spawnRegion;
+    [SerializeField] private bool randomAgentSpawn;
 
-    [SerializeField] GameObject parkingLotsObj;
-    [SerializeField] GameObject parkingGoalObj;
+    [SerializeField] private GameObject parkingLotsObj;
+    [SerializeField] private GameObject parkingGoalObj;
+    private ParkingLots parkingLots;
+
+    [HideInInspector] public float validParkingTimer;
+    [HideInInspector] public float lastEpisodeReward = 0f;
+
+    // Sensors =====================================================
+
+    private RayPerceptionSensor[] carRays;
+    private RayPerceptionSensorComponent3D[] carRayComponent;
 
     // =====================================================
 
@@ -42,11 +58,6 @@ public class SimulationManager : MonoBehaviour {
     // reward based on entering goal area, alignment of car with axis
 
     [Header("Rewards")]
-
-    [HideInInspector] public float validParkingTimer;
-
-    [HideInInspector] public float lastEpisodeReward = 0f;
-
     [SerializeField] private float spottedGoalReward = 2.5f; // once for spotting the goal
     [HideInInspector] public bool hasSpottedGoal;
 
@@ -121,9 +132,13 @@ public class SimulationManager : MonoBehaviour {
         carAgent = carAgentObj.GetComponent<CarAgent>();
         carController = carAgentObj.GetComponent<CarController>();
         carStartPosition = carAgentObj.transform.position;
-        carRigidbody = carAgentObj.GetComponent<Rigidbody>();
-        carRayComponent = carAgentObj.GetComponents<RayPerceptionSensorComponent3D>();
+        carStartRotation = carAgentObj.transform.rotation;
+
+        carRayComponent = carAgentObj.GetComponentsInChildren<RayPerceptionSensorComponent3D>();
         carRays = carRayComponent.Select(rayComponent => rayComponent.RaySensor).ToArray();
+
+        parkingLots = parkingLotsObj.GetComponent<ParkingLots>();
+
         behaviorParameters = carAgentObj.GetComponent<BehaviorParameters>();
 
         // configuration
@@ -148,26 +163,38 @@ public class SimulationManager : MonoBehaviour {
         validParkingTimer = 0;
     }
 
-    private void ResetCarsRotation() {
-        // Todo: Fix!
+    private void ResetParkingLots() {
+        parkingLots.ResetParkingLots();
     }
 
+    // Should be able to specify spacing between cars and how many to spawn
+    // handles randomly placing the lot
     private void SetupCarsPosition() {
-        // Todo: Fix!
+        Debug.LogError("Not implemented!");
     }
 
     private void SetupCars() {
         // do not teardown, just reset all rotations, reposition
         int goalPositionIndex = Random.Range(0, parkingLotsObj.transform.childCount - 1);
-        ResetCarsRotation();
-        SetupCarsPosition();
+
+        if (randomSpawnCars) {
+            SetupCarsPosition();
+        } else {
+            ResetParkingLots();
+        }
     }
 
     private void ResetSimulation() {
         SetupCars();
-        Quaternion rotation = Quaternion.identity;
-        rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
-        carAgentObj.transform.SetLocalPositionAndRotation(GetCarStartPosition(), rotation);
+
+        if (randomAgentSpawn) {
+            Quaternion rotation = Quaternion.identity;
+            rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
+            carAgentObj.transform.SetLocalPositionAndRotation(GetCarStartPosition(), rotation);
+        } else {
+            carAgentObj.transform.SetLocalPositionAndRotation(carStartPosition, carStartRotation);
+        }
+        
     }
 
     private void OnEpisodeBeginEvent() {
@@ -300,9 +327,24 @@ public class SimulationManager : MonoBehaviour {
     // Collision Detection =====================================================
 
     public bool IsSpottingGoal() {
-        foreach (RayPerceptionSensor ray in carRays) {
-            foreach (RayOutput rayOutput in ray.RayPerceptionOutput.RayOutputs) {
-                if (rayOutput.HitGameObject.tag == PARKING_GOAL) {
+        //foreach (RayPerceptionSensor ray in carRays) {
+        //    foreach (RayOutput rayOutput in ray.RayPerceptionOutput.RayOutputs) {
+        //        if (rayOutput.HasHit && rayOutput.HitGameObject.tag == PARKING_GOAL) {
+        //            Debug.Log(rayOutput.HitFraction);
+        //            return true;
+        //        }
+        //    }
+        //}
+
+        // Unity Bug: If you select the car to view sensor rays in the editor, rays will not be updated
+
+        for (int i = 0; i < carRays.Length; i++) {
+            RayPerceptionSensor ray = carRays[i];
+            for (int j = 0; j < ray.RayPerceptionOutput.RayOutputs.Length; j++) {
+                RayOutput rayOutput = ray.RayPerceptionOutput.RayOutputs[j];
+                if (rayOutput.HasHit && rayOutput.HitGameObject.tag == PARKING_GOAL) {
+                    // Debug.Log($"{i}, {j}");
+                    // Debug.Log(rayOutput.HitFraction);
                     return true;
                 }
             }
