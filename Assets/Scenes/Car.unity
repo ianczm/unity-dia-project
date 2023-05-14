@@ -2733,33 +2733,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: 'Reward: 100.0
-
-    StepCount: 50
-
-
-    hasSpottedGoal: Yes
-
-    hasEnteredGoal:
-    Yes
-
-    hasBeenWithinBounds: Yes
-
-
-    isSpottingGoal(): Yes
-
-    isEnteringGoal:
-    Yes
-
-    IsWithinBounds(): Yes
-
-    isOffroad: Yes
-
-
-    GetGoalDistance(): 100.0
-
-    GetGoalAngleDifference():
-    360.0'
+  m_Text: Loading status...
 --- !u!222 &1756345299
 CanvasRenderer:
   m_ObjectHideFlags: 0

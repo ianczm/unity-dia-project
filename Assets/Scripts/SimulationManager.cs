@@ -13,7 +13,7 @@ public class SimulationManager : MonoBehaviour {
     [Header("Configuration")]
     
     [SerializeField] private int maxSteps = 5000;
-    [SerializeField] private int validParkingDuration = 5; // how long in valid parking before episode ends
+    [SerializeField] private int requiredParkingDuration = 5; // how long in valid parking before episode ends
     [SerializeField] private bool useHeuristics = false;
 
     // =====================================================
@@ -43,6 +43,10 @@ public class SimulationManager : MonoBehaviour {
 
     [Header("Rewards")]
 
+    [HideInInspector] public float validParkingTimer;
+
+    [HideInInspector] public float lastEpisodeReward = 0f;
+
     [SerializeField] private float spottedGoalReward = 2.5f; // once for spotting the goal
     [HideInInspector] public bool hasSpottedGoal;
 
@@ -50,10 +54,10 @@ public class SimulationManager : MonoBehaviour {
     [HideInInspector] public bool hasEnteredGoal;
     [HideInInspector] public bool isEnteringGoal;
 
-    [SerializeField] private float maxWithinBoundsReward = 5f; // based on proportion of car within goal bounds (for now only awarded at the end)
+    [SerializeField] private float maxWithinBoundsReward = 5f; // based on distance of car center to parking center
     [HideInInspector] public bool hasBeenWithinBounds;
 
-    [SerializeField] private float maxAlignmentReward = 2.5f; // any direction, as long as it is perfectly parallel to parking axis (for now only awarded at the end)
+    [SerializeField] private float maxAlignmentReward = 2.5f; // based on how parallel the car is
 
     // =====================================================
 
@@ -64,7 +68,7 @@ public class SimulationManager : MonoBehaviour {
     
     [SerializeField] private float maxTimePenalty = 1f; // given per unit time regardless, encourages faster completion
 
-    [SerializeField] private float maxOffroadPenalty = 2.5f; // given per unit time any part of the car is offroad
+    [SerializeField] private float maxOffroadPenalty = 2.5f; // given per unit time if the entire car is not on the road or goal
     [HideInInspector] public bool isOffroad;
 
     [SerializeField] private float collisionPenalty = 10f; // given for each hit
@@ -141,6 +145,7 @@ public class SimulationManager : MonoBehaviour {
         hasBeenWithinBounds = false;
         isEnteringGoal = false;
         isOffroad = false;
+        validParkingTimer = 0;
     }
 
     private void ResetCarsRotation() {
@@ -166,7 +171,6 @@ public class SimulationManager : MonoBehaviour {
     }
 
     private void OnEpisodeBeginEvent() {
-        Debug.Log("Begin Episode");
         ResetFlags();
         ResetSimulation();
     }
@@ -177,7 +181,6 @@ public class SimulationManager : MonoBehaviour {
         // time-bound penalties
 
         if (isOffroad) {
-            Debug.Log("Offroad Penalty");
             carAgent.AddReward(-maxOffroadPenalty / maxSteps);
         }
 
@@ -189,44 +192,51 @@ public class SimulationManager : MonoBehaviour {
         // spotted goal (event driven instead?)
         if (!hasSpottedGoal && IsSpottingGoal()) {
             hasSpottedGoal = true;
-            Debug.Log("Goal Spot Reward");
+            Debug.Log("Reward: Spotted Goal");
             carAgent.AddReward(spottedGoalReward);
         }
 
-        if ((IsWithinBounds() && CurrentValidParkingDuration() > validParkingDuration)) {
-            Debug.Log("Ending Episode on Success");
+        if (IsWithinBounds()) {
+            validParkingTimer += Time.fixedDeltaTime;
+        } else {
+            validParkingTimer = 0;
+        }
+
+        if (validParkingTimer > requiredParkingDuration) {
             EndEpisodeSuccess();
         } else if (carAgent.StepCount >= maxSteps) {
-            Debug.Log("Ending Episode on Failure");
-            EndEpisodeSuccess();
+            EndEpisodeFailure();
         }
     }
 
     private void AssignFinalRewards() {
+        Debug.Log("Reward: Goal Distance");
         carAgent.AddReward(CalculateGoalDistanceReward());
+        Debug.Log("Reward: Alignment");
         carAgent.AddReward(CalculateAlignmentReward());
     }
 
     private void EndEpisodeFailure() {
+        lastEpisodeReward = carAgent.GetCumulativeReward();
         carAgent.EndEpisode();
         SetResultMaterial(failure);
     }
 
     private void EndEpisodeSuccess() {
-        Debug.Log("Assigning Final Rewards");
         AssignFinalRewards();
+        lastEpisodeReward = carAgent.GetCumulativeReward();
         carAgent.EndEpisode();
         SetResultMaterial(success);
     }
 
     // Reward Calculation =====================================================
 
-    private float CalculateGoalDistanceReward() {
+    public float CalculateGoalDistanceReward() {
         float reward = maxWithinBoundsReward - GetGoalDistance();
         return reward > 0 ? reward : 0;
     }
 
-    private float CalculateAlignmentReward() {
+    public float CalculateAlignmentReward() {
         float angleDifference = GetGoalAngleDifference();
         float reward = Mathf.Cos(angleDifference) * maxAlignmentReward;
         return Mathf.Abs(reward);
@@ -266,11 +276,6 @@ public class SimulationManager : MonoBehaviour {
         } else {
             return false;
         }
-    }
-
-    // Todo: Fix!
-    private float CurrentValidParkingDuration() {
-        return validParkingDuration + 5f;
     }
 
     private void SetResultMaterial(Material mat) {
@@ -313,18 +318,17 @@ public class SimulationManager : MonoBehaviour {
                 hasEnteredGoal = true;
                 isEnteringGoal = true;
                 isOffroad = false;
-                Debug.Log("Enter Goal Reward");
+                Debug.Log("Reward: Enter Goal");
                 carAgent.AddReward(enteredGoalReward);
             }
         }
         
         if (tag == PARKED_CAR || tag == EDGE) {
-            Debug.Log("Collision Penalty");
+            Debug.Log("Penalty: Collision");
             carAgent.AddReward(-collisionPenalty);
         }
 
         if (tag == ROAD) {
-            Debug.Log("Entered Road");
             isOffroad = false;
         }
     }
@@ -334,11 +338,14 @@ public class SimulationManager : MonoBehaviour {
 
         if (tag == PARKING_GOAL) {
             isEnteringGoal = true;
-            Debug.Log("Currently Entering Goal");
+            isOffroad = false;
             if (!hasBeenWithinBounds && IsWithinBounds()) {
                 hasBeenWithinBounds = true;
-                Debug.Log("Entered Bounds");
             }
+        }
+
+        if (tag == ROAD) {
+            isOffroad = false;
         }
     }
 
@@ -348,11 +355,9 @@ public class SimulationManager : MonoBehaviour {
         if (tag == PARKING_GOAL) {
             isEnteringGoal = false;
             isOffroad = true;
-            Debug.Log("Left Goal");
         }
 
         if (tag == ROAD) {
-            Debug.Log("Exited Road");
             isOffroad = true;
         }
     }

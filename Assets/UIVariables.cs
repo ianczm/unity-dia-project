@@ -12,7 +12,9 @@ public class UIVariables : MonoBehaviour
     [SerializeField] Text output;
 
     private float reward;
+    private float lastEpisodeReward;
     private float stepCount;
+    private float parkingTimer;
 
     private bool hasSpottedGoal;
     private bool hasEnteredGoal;
@@ -24,12 +26,17 @@ public class UIVariables : MonoBehaviour
     private bool isOffroad;
 
     private float goalDistance;
+    private float goalDistanceReward;
+
     private float angleDifference;
+    private float alignmentReward;
 
     private void UpdateFields() {
 
         reward = sm.carAgent.GetCumulativeReward();
+        lastEpisodeReward = sm.lastEpisodeReward;
         stepCount = sm.carAgent.StepCount;
+        parkingTimer = sm.validParkingTimer;
 
         hasSpottedGoal = sm.hasSpottedGoal;
         hasEnteredGoal = sm.hasEnteredGoal;
@@ -41,7 +48,16 @@ public class UIVariables : MonoBehaviour
         isOffroad = sm.isOffroad;
 
         goalDistance = sm.GetGoalDistance();
-        angleDifference = sm.GetGoalAngleDifference();
+        goalDistanceReward = sm.CalculateGoalDistanceReward();
+
+        float angleInDegrees = Mathf.Rad2Deg * sm.GetGoalAngleDifference();
+        angleDifference = getAcuteDegrees(angleInDegrees);
+        alignmentReward = sm.CalculateAlignmentReward();
+    }
+
+    private float getAcuteDegrees(float deg) { 
+        float absDeg = Mathf.Abs(deg);
+        return absDeg > 90 ? 180 - absDeg : absDeg;
     }
 
     private void OutputString() {
@@ -49,7 +65,9 @@ public class UIVariables : MonoBehaviour
         StringBuilder sb = new StringBuilder();
 
         sb.AppendLineFormat($"Reward: {reward:0.00}");
-        sb.AppendLineFormat($"StepCount: {stepCount}\n");
+        sb.AppendLineFormat($"Last Episode Reward: {lastEpisodeReward:0.00}");
+        sb.AppendLineFormat($"StepCount: {stepCount}");
+        sb.AppendLineFormat($"ValidParkingTimer: {parkingTimer:0.00}\n");
 
         sb.AppendLineFormat($"hasSpottedGoal: {hasSpottedGoal}");
         sb.AppendLineFormat($"hasEnteredGoal: {hasEnteredGoal}");
@@ -61,7 +79,10 @@ public class UIVariables : MonoBehaviour
         sb.AppendLineFormat($"isOffroad: {isOffroad}\n");
 
         sb.AppendLineFormat($"GetGoalDistance(): {goalDistance:0.00}");
+        sb.AppendLineFormat($"GoalDistanceReward(): {goalDistanceReward:0.00}\n");
+
         sb.AppendLineFormat($"GetGoalAngleDifference(): {angleDifference:0.00}");
+        sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}");
 
         output.text = sb.ToString();
     }
