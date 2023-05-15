@@ -768,7 +768,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxSteps: 5000
   requiredParkingDuration: 5
-  useHeuristics: 1
+  useHeuristics: 0
   randomSpawnCars: 0
   spaceBetweenCars: 10
   numSlots: 12
@@ -785,11 +785,16 @@ MonoBehaviour:
   spottedGoalReward: 2.5
   hasSpottedGoal: 0
   enteredGoalReward: 10
+  maxStayingInGoalReward: 5
   hasEnteredGoal: 0
   isEnteringGoal: 0
-  maxWithinBoundsReward: 5
+  maxPrecisionReward: 5
+  maxProximityReward: 5
+  thresholdProximity: 10
   hasBeenWithinBounds: 0
   maxAlignmentReward: 2.5
+  maxVelocityReward: 1
+  thresholdVelocity: 3
   maxTimePenalty: 1
   maxOffroadPenalty: 2.5
   isOffroad: 0

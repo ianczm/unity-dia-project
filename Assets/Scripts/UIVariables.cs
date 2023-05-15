@@ -8,8 +8,8 @@ using UnityEngine.UI;
 public class UIVariables : MonoBehaviour
 {
 
-    [SerializeField] SimulationManager sm;
-    [SerializeField] Text output;
+    [SerializeField] public SimulationManager sm;
+    [SerializeField] public Text output;
 
     private float reward;
     private float lastEpisodeReward;
@@ -26,10 +26,12 @@ public class UIVariables : MonoBehaviour
     private bool isOffroad;
 
     private float goalDistance;
-    private float goalDistanceReward;
+    private float goalPrecisionReward;
+    private float proximityReward;
 
     private float angleDifference;
     private float alignmentReward;
+    private float stayInGoalReward;
 
     private float velocity;
     private float velocityReward;
@@ -51,14 +53,17 @@ public class UIVariables : MonoBehaviour
         isOffroad = sm.isOffroad;
 
         goalDistance = sm.GetGoalDistance();
-        goalDistanceReward = sm.CalculateGoalDistanceReward();
+        goalPrecisionReward = sm.CalculatePrecisionReward();
+        proximityReward = sm.CalculateProximityReward();
 
         float angleInDegrees = Mathf.Rad2Deg * sm.GetGoalAngleDifference();
         angleDifference = getAcuteDegrees(angleInDegrees);
         alignmentReward = sm.CalculateAlignmentReward();
 
+        stayInGoalReward = sm.stayInGoalReward;
+
         velocity = sm.GetCarVelocity();
-        velocityReward = sm.velocityReward;
+        velocityReward = sm.CalculateVelocityReward();
     }
 
     private float getAcuteDegrees(float deg) { 
@@ -85,13 +90,16 @@ public class UIVariables : MonoBehaviour
         sb.AppendLineFormat($"isOffroad: {isOffroad}\n");
 
         sb.AppendLineFormat($"GetGoalDistance(): {goalDistance:0.00}");
-        sb.AppendLineFormat($"GoalDistanceReward(): {goalDistanceReward:0.00}\n");
+        sb.AppendLineFormat($"GoalDistanceReward(): {goalPrecisionReward:0.00}\n");
+        //sb.AppendLineFormat($"ProximityReward(): {proximityReward:0.0000}\n");
 
         sb.AppendLineFormat($"GetGoalAngleDifference(): {angleDifference:0.00}");
         sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}\n");
 
-        sb.AppendLineFormat($"Velocity: {velocity:0.00}");
-        sb.AppendLineFormat($"VelocityReward(): {velocityReward:0.0000}");
+        sb.AppendLineFormat($"stayInGoalReward: {stayInGoalReward:0.0000}");
+
+        //sb.AppendLineFormat($"Velocity: {velocity:0.00}");
+        //sb.AppendLineFormat($"VelocityReward(): {velocityReward:0.0000}");
 
         output.text = sb.ToString();
     }

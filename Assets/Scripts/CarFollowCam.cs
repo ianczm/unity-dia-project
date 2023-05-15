@@ -6,10 +6,10 @@ using UnityEngine;
 public class CarFollowCam : MonoBehaviour {
 
     [Header("Object")]
-    [SerializeField] private Transform car;
+    [SerializeField] public Transform car;
 
     [Header("Camera")]
-    [SerializeField] private Camera followCam;
+    [SerializeField] public Camera followCam;
     [SerializeField] private Vector3 positionOffset;
     [SerializeField] private Quaternion rotationOffset;
 

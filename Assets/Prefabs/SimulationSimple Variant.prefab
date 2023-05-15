@@ -35,13 +35,37 @@ PrefabInstance:
       propertyPath: m_IsActive
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7653456685785815863, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: m_LocalScale.x
+      value: 0.7035601
+      objectReference: {fileID: 0}
+    - target: {fileID: 7653456685785815863, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: m_LocalScale.z
+      value: 2.183291
+      objectReference: {fileID: 0}
+    - target: {fileID: 7653456685785815863, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: 1.2656
+      objectReference: {fileID: 0}
+    - target: {fileID: 7653456685785815863, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 6.2625
+      objectReference: {fileID: 0}
     - target: {fileID: 7653456685835291608, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
       propertyPath: useHeuristics
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 7653456685835291608, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: maxVelocityReward
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7653456685835291608, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
+      propertyPath: maxProximityReward
+      value: 5
+      objectReference: {fileID: 0}
     - target: {fileID: 7653456685835291609, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
       propertyPath: m_Name
-      value: SimulationSimple
+      value: SimulationSimple Variant
       objectReference: {fileID: 0}
     - target: {fileID: 7653456685835291611, guid: f1ed46b79de9110459c93aa19b7e4905, type: 3}
       propertyPath: m_RootOrder

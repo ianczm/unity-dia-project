@@ -14,7 +14,8 @@ public class SimulationManager : MonoBehaviour {
     
     [SerializeField] private int maxSteps = 5000;
     [SerializeField] private int requiredParkingDuration = 5; // how long in valid parking before episode ends
-    [SerializeField] private bool useHeuristics = false;
+    [SerializeField] private float maxAllowedDistance = 20f; // episode ends on failure if exceeded
+    [SerializeField] public bool useHeuristics = false;
 
     // =====================================================
 
@@ -45,8 +46,11 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] private GameObject parkingGoalObj;
     private ParkingLots parkingLots;
 
+    // Public Accessors
+
     [HideInInspector] public float validParkingTimer;
     [HideInInspector] public float lastEpisodeReward = 0f;
+    [HideInInspector] public float stayInGoalReward = 0f;
 
     // Sensors =====================================================
 
@@ -59,21 +63,39 @@ public class SimulationManager : MonoBehaviour {
     // reward based on entering goal area, alignment of car with axis
 
     [Header("Rewards")]
+    
+    // Spotted Goal
+    [SerializeField] private bool enableSpottedGoal = true; // once for spotting the goal
     [SerializeField] private float spottedGoalReward = 2.5f; // once for spotting the goal
-    [HideInInspector] public bool hasSpottedGoal;
-
+    
+    // Entered Goal
     [SerializeField] private float enteredGoalReward = 10f; // once for entering the goal (might not be fully in)
-    [HideInInspector] public bool hasEnteredGoal;
-    [HideInInspector] public bool isEnteringGoal;
 
-    [SerializeField] private float maxWithinBoundsReward = 5f; // based on distance of car center to parking center
-    [HideInInspector] public bool hasBeenWithinBounds;
+    // Staying in Goal
+    [SerializeField] private bool enableStayingInGoal = true; // once for spotting the goal
+    [SerializeField] private float maxStayingInGoalReward = 5f; // divided over time, assigned per tick
 
+    // Parking Perfection
+    [SerializeField] private float maxPrecisionReward = 5f; // based on distance of car center to parking center
     [SerializeField] private float maxAlignmentReward = 2.5f; // based on how parallel the car is
 
-    [HideInInspector] public float velocityReward = 0f;
-    [SerializeField] private float maxVelocityReward = 2.5f;
-    [SerializeField] private float velocityMultiplier = 0.0002f; // greater here means slower is encouraged velocity
+    // Proximity
+    [SerializeField] private bool enableProximity = false;
+    [SerializeField] private float maxProximityReward = 2.5f; // divided over time, assigned per tick
+    [SerializeField] private float thresholdProximity = 10f; // proximity from goal where reward starts coming in
+
+    // Velocity
+    [SerializeField] private bool enableVelocity = false;
+    [SerializeField] private float maxVelocityReward = 1f; // travelling at threshold velocity the entire game will result in this
+    [SerializeField] private float thresholdVelocity = 3f; // max speed after which reward is maxed
+
+    // Bools
+    [HideInInspector] public bool hasSpottedGoal;
+    [HideInInspector] public bool hasEnteredGoal;
+    [HideInInspector] public bool hasBeenWithinBounds;
+    [HideInInspector] public bool isEnteringGoal;
+
+    private float previousDistance;
 
     // =====================================================
 
@@ -88,6 +110,10 @@ public class SimulationManager : MonoBehaviour {
     [HideInInspector] public bool isOffroad;
 
     [SerializeField] private float collisionPenalty = 10f; // given for each hit
+
+    [SerializeField] private float exceedDistancePenalty = 10f; // given if exceeded
+
+    [SerializeField] private float leaveParkingPenalty = 2.5f;
 
     // start and end episodes, manage random spawn and goal location
     // car should be rotated sometimes
@@ -167,7 +193,7 @@ public class SimulationManager : MonoBehaviour {
         isEnteringGoal = false;
         isOffroad = false;
         validParkingTimer = 0;
-        velocityReward = 0;
+        previousDistance = GetGoalDistance();
     }
 
     private void ResetParkingLots() {
@@ -196,11 +222,13 @@ public class SimulationManager : MonoBehaviour {
 
         if (randomAgentSpawn) {
             Quaternion rotation = Quaternion.identity;
-            rotation.eulerAngles = new Vector3(0, Random.Range(-45, 45), 0);
+            rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
             carAgentObj.transform.SetPositionAndRotation(GetCarStartPosition(), rotation);
         } else {
             carAgentObj.transform.SetPositionAndRotation(carStartPosition, carStartRotation);
         }
+
+        carRigidbody.velocity = Vector3.zero;
         
     }
 
@@ -222,18 +250,65 @@ public class SimulationManager : MonoBehaviour {
 
     }
 
-    private void FixedUpdate() {
+    private void RewardVelocity() {
+        carAgent.AddReward(CalculateVelocityReward());
+    }
 
-        // encourage movement
-        float velocity = carRigidbody.velocity.magnitude;
-        velocityReward = Mathf.Min(maxVelocityReward / maxSteps, velocity * velocityMultiplier);
-        carAgent.AddReward(velocityReward);
+    private void RewardProximity() {
+        float differenceDelta = GetGoalDistance() - previousDistance;
+        if (differenceDelta < 0) {
+            // carAgent.AddReward(CalculateProximityReward());
+            Debug.Log("Getting closer");
+            carAgent.AddReward(maxProximityReward / maxSteps);
+        } else if (differenceDelta > 0) {
+            carAgent.AddReward(-maxProximityReward / maxSteps);
+            Debug.Log("Getting further");
+        }
+    }
 
-        // spotted goal (event driven instead?)
+    private void RewardSpottedGoal() {
         if (!hasSpottedGoal && IsSpottingGoal()) {
             hasSpottedGoal = true;
             Debug.Log("Reward: Spotted Goal");
             carAgent.AddReward(spottedGoalReward);
+        }
+    }
+
+    private void RewardStayingInGoal() {
+        if (IsWithinBounds()) {
+
+            float totalReward;
+
+            float distanceReward = maxStayingInGoalReward - GetGoalDistance();
+
+            float angleDifference = GetGoalAngleDifference();
+            float alignmentReward = Mathf.Cos(angleDifference) * maxStayingInGoalReward;
+
+            totalReward = (distanceReward + alignmentReward) / (2 * maxSteps);
+            
+            stayInGoalReward = totalReward;
+            carAgent.AddReward(totalReward);
+        }
+    }
+
+    private void FixedUpdate() {
+
+        // encourage movement
+        if (enableVelocity) {
+            RewardVelocity();
+        }
+
+        // encourage proximity to goal
+        if (enableProximity) {
+            RewardProximity();
+        }
+
+        if (enableSpottedGoal) {
+            RewardSpottedGoal();
+        }
+
+        if (enableStayingInGoal) {
+            RewardStayingInGoal();
         }
 
         if (IsWithinBounds()) {
@@ -244,19 +319,29 @@ public class SimulationManager : MonoBehaviour {
 
         if (validParkingTimer > requiredParkingDuration) {
             EndEpisodeSuccess();
-        } else if (carAgent.StepCount >= maxSteps) {
+        } else if (carAgent.StepCount >= maxSteps || GetGoalDistance() > maxAllowedDistance) {
             EndEpisodeFailure();
         }
+
+        previousDistance = GetGoalDistance();
     }
 
     private void AssignFinalRewards() {
         Debug.Log("Reward: Goal Distance");
-        carAgent.AddReward(CalculateGoalDistanceReward());
+        carAgent.AddReward(CalculatePrecisionReward());
         Debug.Log("Reward: Alignment");
         carAgent.AddReward(CalculateAlignmentReward());
     }
 
+    private void AssignFinalPenalties() {
+        if (GetGoalDistance() > maxAllowedDistance) {
+            Debug.Log("Penalty: Exceeded Max Distance");
+            carAgent.AddReward(-exceedDistancePenalty);
+        }
+    }
+
     private void EndEpisodeFailure() {
+        AssignFinalPenalties();
         lastEpisodeReward = carAgent.GetCumulativeReward();
         carAgent.EndEpisode();
         SetResultMaterial(failure);
@@ -271,8 +356,21 @@ public class SimulationManager : MonoBehaviour {
 
     // Reward Calculation =====================================================
 
-    public float CalculateGoalDistanceReward() {
-        float reward = maxWithinBoundsReward - GetGoalDistance();
+    public float CalculateVelocityReward() {
+        float velocity = carRigidbody.velocity.magnitude;
+        float velocityMultiplier = maxVelocityReward / (thresholdVelocity * maxSteps);
+        return Mathf.Min(maxVelocityReward / maxSteps, velocity * velocityMultiplier);
+    }
+
+    public float CalculateProximityReward() {
+        float adjustedDistance = GetGoalDistance() * maxProximityReward / thresholdProximity;
+        float maxReward = (maxProximityReward - adjustedDistance);
+        float sqrReward = maxReward * maxReward;
+        return maxReward > 0 ? sqrReward / maxSteps : 0;
+    }
+
+    public float CalculatePrecisionReward() {
+        float reward = maxPrecisionReward - GetGoalDistance();
         return reward > 0 ? reward : 0;
     }
 
@@ -414,6 +512,10 @@ public class SimulationManager : MonoBehaviour {
         if (tag == PARKING_GOAL) {
             isEnteringGoal = false;
             isOffroad = true;
+            if (hasBeenWithinBounds) {
+                Debug.Log("Penalty: Left Parking Area");
+                carAgent.AddReward(-leaveParkingPenalty);
+            }
         }
 
         if (tag == ROAD) {
