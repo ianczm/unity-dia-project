@@ -1,0 +1,38 @@
+{
+    "ParallelPark": {
+        "checkpoints": [
+            {
+                "steps": 499967,
+                "file_path": "results\\phase5_1\\ParallelPark\\ParallelPark-499967.onnx",
+                "reward": -6.888864517211914,
+                "creation_time": 1684238281.8246956,
+                "auxillary_file_paths": [
+                    "results\\phase5_1\\ParallelPark\\ParallelPark-499967.pt"
+                ]
+            },
+            {
+                "steps": 645010,
+                "file_path": "results\\phase5_1\\ParallelPark\\ParallelPark-645010.onnx",
+                "reward": 16.84911634641535,
+                "creation_time": 1684238848.09452,
+                "auxillary_file_paths": [
+                    "results\\phase5_1\\ParallelPark\\ParallelPark-645010.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 645010,
+            "file_path": "results\\phase5_1\\ParallelPark.onnx",
+            "reward": 16.84911634641535,
+            "creation_time": 1684238848.09452,
+            "auxillary_file_paths": [
+                "results\\phase5_1\\ParallelPark\\ParallelPark-645010.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.30.0",
+        "torch_version": "2.0.1"
+    }
+}
