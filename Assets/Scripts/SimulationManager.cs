@@ -40,11 +40,17 @@ public class SimulationManager : MonoBehaviour {
 
     [SerializeField] private GameObject roadObj;
     [SerializeField] private MeshCollider spawnRegion;
-    [SerializeField] private bool randomAgentSpawn;
 
     [SerializeField] private GameObject parkingLotsObj;
     [SerializeField] private GameObject parkingGoalObj;
     private ParkingLots parkingLots;
+
+    [Header("Agent Spawn")]
+    [SerializeField] private bool randomAgentSpawn = false;
+    [SerializeField] private bool randomDirection = false;
+    [SerializeField] private bool flipRoadDirection = false;
+    [SerializeField] private bool randomXAxis = false;
+    [SerializeField] private bool randomZAxis = false;
 
     // Public Accessors
 
@@ -76,6 +82,7 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] private float maxStayingInGoalReward = 5f; // divided over time, assigned per tick
 
     // Parking Perfection
+    [SerializeField] private float thresholdPrecision = 1f; // min distance for precision to be calculated
     [SerializeField] private float maxPrecisionReward = 5f; // based on distance of car center to parking center
     [SerializeField] private float maxAlignmentReward = 2.5f; // based on how parallel the car is
 
@@ -193,6 +200,7 @@ public class SimulationManager : MonoBehaviour {
         isEnteringGoal = false;
         isOffroad = false;
         validParkingTimer = 0;
+        stayInGoalReward = 0;
         previousDistance = GetGoalDistance();
     }
 
@@ -220,15 +228,15 @@ public class SimulationManager : MonoBehaviour {
     private void ResetSimulation() {
         SetupCars();
 
+        carRigidbody.velocity = Vector3.zero;
+
         if (randomAgentSpawn) {
-            Quaternion rotation = Quaternion.identity;
-            rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
-            carAgentObj.transform.SetPositionAndRotation(GetCarStartPosition(), rotation);
+            Quaternion finalRotation = GetAgentRotation();
+            Vector3 finalPosition = GetAgentRandomPosition();
+            carAgentObj.transform.SetPositionAndRotation(finalPosition, finalRotation);
         } else {
             carAgentObj.transform.SetPositionAndRotation(carStartPosition, carStartRotation);
         }
-
-        carRigidbody.velocity = Vector3.zero;
         
     }
 
@@ -255,15 +263,7 @@ public class SimulationManager : MonoBehaviour {
     }
 
     private void RewardProximity() {
-        float differenceDelta = GetGoalDistance() - previousDistance;
-        if (differenceDelta < 0) {
-            // carAgent.AddReward(CalculateProximityReward());
-            Debug.Log("Getting closer");
-            carAgent.AddReward(maxProximityReward / maxSteps);
-        } else if (differenceDelta > 0) {
-            carAgent.AddReward(-maxProximityReward / maxSteps);
-            Debug.Log("Getting further");
-        }
+        carAgent.AddReward(CalculateProximityReward());
     }
 
     private void RewardSpottedGoal() {
@@ -276,18 +276,11 @@ public class SimulationManager : MonoBehaviour {
 
     private void RewardStayingInGoal() {
         if (IsWithinBounds()) {
-
-            float totalReward;
-
-            float distanceReward = maxStayingInGoalReward - GetGoalDistance();
-
-            float angleDifference = GetGoalAngleDifference();
-            float alignmentReward = Mathf.Cos(angleDifference) * maxStayingInGoalReward;
-
-            totalReward = (distanceReward + alignmentReward) / (2 * maxSteps);
-            
-            stayInGoalReward = totalReward;
-            carAgent.AddReward(totalReward);
+            float reward = CalculateStayInGoalReward();
+            stayInGoalReward = reward;
+            carAgent.AddReward(reward);
+        } else {
+            stayInGoalReward = 0;
         }
     }
 
@@ -363,35 +356,66 @@ public class SimulationManager : MonoBehaviour {
     }
 
     public float CalculateProximityReward() {
-        float adjustedDistance = GetGoalDistance() * maxProximityReward / thresholdProximity;
-        float maxReward = (maxProximityReward - adjustedDistance);
-        float sqrReward = maxReward * maxReward;
-        return maxReward > 0 ? sqrReward / maxSteps : 0;
+        return RProx(thresholdProximity, maxProximityReward, GetGoalDistance()) / maxSteps;
+    }
+
+    public float CalculateStayInGoalReward() {
+        float proximityReward = RProx(0.5f * thresholdPrecision, 0.5f, GetGoalDistance());
+        float alignmentReward = RAlign(0.5f, GetGoalAngleDifference());
+        float reward = (maxStayingInGoalReward * (proximityReward + alignmentReward)) / maxSteps;
+        return reward;
     }
 
     public float CalculatePrecisionReward() {
-        float reward = maxPrecisionReward - GetGoalDistance();
-        return reward > 0 ? reward : 0;
+        return RProx(thresholdPrecision, maxPrecisionReward, GetGoalDistance());
     }
 
     public float CalculateAlignmentReward() {
-        float angleDifference = GetGoalAngleDifference();
-        float reward = Mathf.Cos(angleDifference) * maxAlignmentReward;
+        return RAlign(maxAlignmentReward, GetGoalAngleDifference());
+    }
+
+    private float RProx(float rthresh, float proxmax, float r) {
+        // -Rproxmax * (x/rthresh - 1)^3
+        float reward = -proxmax * Mathf.Pow((r / rthresh) - 1, 3);
+        return Mathf.Clamp(reward, 0, proxmax);
+    }
+
+    private float RAlign(float alignmax, float angleDifference) {
+        float reward = Mathf.Cos(angleDifference) * alignmax;
         return Mathf.Abs(reward);
     }
 
     // Game Calculations =====================================================
 
-    public float GetCarVelocity() {
-        return carRigidbody.velocity.magnitude;
+    private Quaternion GetAgentRotation() {
+        Quaternion rotation = Quaternion.identity;
+        if (randomDirection) {
+            rotation.eulerAngles = new Vector3(0, Random.Range(0, 360), 0);
+        } else if (flipRoadDirection) {
+            int decision = Random.Range(0, 2);
+            float degrees = decision == 0 ? 0 : 180;
+            Debug.Log(degrees);
+            rotation.eulerAngles = new Vector3(0, degrees, 0);
+        } else {
+            rotation = carStartRotation;
+        }
+        return rotation;
     }
 
-    private Vector3 GetCarStartPosition() {
+    private Vector3 GetAgentRandomPosition() {
+
         Bounds bounds = spawnRegion.bounds;
-        float carHeight = carStartPosition.y;
-        float x = Random.Range(bounds.min.x, bounds.max.x);
-        float z = Random.Range(bounds.min.z, bounds.max.z);
+        Vector3 carStart = carStartPosition;
+
+        float carHeight = carStart.y;
+        float x = randomXAxis ? Random.Range(bounds.min.x, bounds.max.x) : carStart.x;
+        float z = randomZAxis ? Random.Range(bounds.min.z, bounds.max.z) : carStart.z;
+
         return new Vector3(x, carHeight, z);
+    }
+
+    public float GetCarVelocity() {
+        return carRigidbody.velocity.magnitude;
     }
 
     public float GetGoalDistance() {

@@ -90,12 +90,12 @@ public class UIVariables : MonoBehaviour
         sb.AppendLineFormat($"isOffroad: {isOffroad}\n");
 
         sb.AppendLineFormat($"GetGoalDistance(): {goalDistance:0.00}");
+        sb.AppendLineFormat($"GetGoalAngleDifference(): {angleDifference:0.00}\n");
+
+        sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}");
         sb.AppendLineFormat($"GoalDistanceReward(): {goalPrecisionReward:0.00}\n");
-        //sb.AppendLineFormat($"ProximityReward(): {proximityReward:0.0000}\n");
 
-        sb.AppendLineFormat($"GetGoalAngleDifference(): {angleDifference:0.00}");
-        sb.AppendLineFormat($"AlignmentReward(): {alignmentReward:0.00}\n");
-
+        sb.AppendLineFormat($"ProximityReward(): {proximityReward:0.0000}\n");
         sb.AppendLineFormat($"stayInGoalReward: {stayInGoalReward:0.0000}");
 
         //sb.AppendLineFormat($"Velocity: {velocity:0.00}");
