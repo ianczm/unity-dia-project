@@ -2,31 +2,31 @@
     "ParallelPark": {
         "checkpoints": [
             {
-                "steps": 2000029,
-                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-2000029.onnx",
-                "reward": 30.054121136665344,
-                "creation_time": 1684263573.9147115,
+                "steps": 3999904,
+                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-3999904.onnx",
+                "reward": 28.13594102859497,
+                "creation_time": 1684271067.7382753,
                 "auxillary_file_paths": [
-                    "results\\phase8_1\\ParallelPark\\ParallelPark-2000029.pt"
+                    "results\\phase8_1\\ParallelPark\\ParallelPark-3999904.pt"
                 ]
             },
             {
-                "steps": 2000029,
-                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-2000029.onnx",
-                "reward": null,
-                "creation_time": 1684264186.1496365,
+                "steps": 4000160,
+                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.onnx",
+                "reward": 28.13594102859497,
+                "creation_time": 1684271068.1348355,
                 "auxillary_file_paths": [
-                    "results\\phase8_1\\ParallelPark\\ParallelPark-2000029.pt"
+                    "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 2000029,
+            "steps": 4000160,
             "file_path": "results\\phase8_1\\ParallelPark.onnx",
-            "reward": null,
-            "creation_time": 1684264186.1496365,
+            "reward": 28.13594102859497,
+            "creation_time": 1684271068.1348355,
             "auxillary_file_paths": [
-                "results\\phase8_1\\ParallelPark\\ParallelPark-2000029.pt"
+                "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.pt"
             ]
         }
     },
