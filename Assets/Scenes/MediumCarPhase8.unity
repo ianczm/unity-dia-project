@@ -1376,14 +1376,14 @@ MonoBehaviour:
   inferenceCar: {fileID: 161681820}
   inferenceSm: {fileID: 161681821}
   useHeuristics: 0
-  enableTraining: 1
+  enableTraining: 0
   recordDemo: 0
   demoRecorder: {fileID: 2040083505}
   demoDirectory: Assets/ML-Agents/Demonstrations
   demoName: Phase6
   simulations: {fileID: 1759433952}
   tests: {fileID: 1741579328}
-  model: {fileID: 5022602860645237092, guid: d130f551de419da4cb0792c409537642, type: 3}
+  model: {fileID: 5022602860645237092, guid: d368e07f58ce062478cf798335e59367, type: 3}
 --- !u!1001 &1165638449
 PrefabInstance:
   m_ObjectHideFlags: 0

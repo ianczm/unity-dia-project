@@ -2,31 +2,31 @@
     "ParallelPark": {
         "checkpoints": [
             {
-                "steps": 3999904,
-                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-3999904.onnx",
-                "reward": 28.13594102859497,
-                "creation_time": 1684271067.7382753,
+                "steps": 5999931,
+                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-5999931.onnx",
+                "reward": 29.757779900861138,
+                "creation_time": 1684279495.027552,
                 "auxillary_file_paths": [
-                    "results\\phase8_1\\ParallelPark\\ParallelPark-3999904.pt"
+                    "results\\phase8_1\\ParallelPark\\ParallelPark-5999931.pt"
                 ]
             },
             {
-                "steps": 4000160,
-                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.onnx",
-                "reward": 28.13594102859497,
-                "creation_time": 1684271068.1348355,
+                "steps": 6000117,
+                "file_path": "results\\phase8_1\\ParallelPark\\ParallelPark-6000117.onnx",
+                "reward": 29.92572163976729,
+                "creation_time": 1684279495.4031384,
                 "auxillary_file_paths": [
-                    "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.pt"
+                    "results\\phase8_1\\ParallelPark\\ParallelPark-6000117.pt"
                 ]
             }
         ],
         "final_checkpoint": {
-            "steps": 4000160,
+            "steps": 6000117,
             "file_path": "results\\phase8_1\\ParallelPark.onnx",
-            "reward": 28.13594102859497,
-            "creation_time": 1684271068.1348355,
+            "reward": 29.92572163976729,
+            "creation_time": 1684279495.4031384,
             "auxillary_file_paths": [
-                "results\\phase8_1\\ParallelPark\\ParallelPark-4000160.pt"
+                "results\\phase8_1\\ParallelPark\\ParallelPark-6000117.pt"
             ]
         }
     },
