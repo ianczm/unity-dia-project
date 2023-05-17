@@ -10,23 +10,28 @@ using static Unity.MLAgents.Sensors.RayPerceptionOutput;
 
 public class SimulationManager : MonoBehaviour {
 
+    // Configuration =====================================================
+
     [Header("Configuration")]
     
-    [SerializeField] private int maxSteps = 5000;
+    [SerializeField] private int maxSteps = 5000; // length of each episode in steps
     [SerializeField] private int requiredParkingDuration = 5; // how long in valid parking before episode ends
     [SerializeField] private float maxAllowedDistance = 20f; // episode ends on failure if exceeded
-    [SerializeField] public bool useHeuristics = false;
+    [SerializeField] public bool useHeuristics = false; // if true, forces the game to receive input from the player, use for testing
 
-    // =====================================================
+    // Development =====================================================
 
+    // these are not used in the project yet
     [Header("Under Development")]
 
     [SerializeField] private bool randomSpawnCars = false;
     [SerializeField] private float spaceBetweenCars = 10f;
     [SerializeField] private int numSlots = 12; // including goal
 
-    // =====================================================
+    // Simulation =====================================================
 
+    // these are objects to be connected through the Unity Editor to allow
+    // them to be managed from this central script
     [Header("Simulation")]
 
     [SerializeField] private GameObject carAgentObj;
@@ -45,6 +50,9 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] private GameObject parkingGoalObj;
     private ParkingLots parkingLots;
 
+    // Agent Spawn =====================================================
+
+    // determines how the agent should be spawned
     [Header("Agent Spawn")]
     [SerializeField] private bool randomAgentSpawn = false;
     [SerializeField] private bool randomDirection = false;
@@ -52,21 +60,29 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] private bool randomXAxis = false;
     [SerializeField] private bool randomZAxis = false;
 
-    // Public Accessors
+    // Public Accessors =====================================================
 
+    // for displaying values in the UI for debugging purposes
     [HideInInspector] public float validParkingTimer;
     [HideInInspector] public float lastEpisodeReward = 0f;
     [HideInInspector] public float stayInGoalReward = 0f;
 
     // Sensors =====================================================
 
+    // for the game to check which object is currently beign detected by the agent
+    // to assign goal spotting rewards
     private RayPerceptionSensor[] carRays;
     private RayPerceptionSensorComponent3D[] carRayComponent;
 
-    // =====================================================
+    // Game State =====================================================
 
-    // assign rewards and penalties
-    // reward based on entering goal area, alignment of car with axis
+    // Game State Bools
+    [HideInInspector] public bool hasSpottedGoal;
+    [HideInInspector] public bool hasEnteredGoal;
+    [HideInInspector] public bool hasBeenWithinBounds;
+    [HideInInspector] public bool isEnteringGoal;
+
+    // Rewards =====================================================
 
     [Header("Rewards")]
     
@@ -92,17 +108,11 @@ public class SimulationManager : MonoBehaviour {
     [SerializeField] private float thresholdProximity = 10f; // proximity from goal where reward starts coming in
 
     // Velocity
-    [SerializeField] private bool enableVelocity = false;
+    [SerializeField] private bool enableVelocity = false; // experimental, do not enable, used to encourage the car to move with steady speed
     [SerializeField] private float maxVelocityReward = 1f; // travelling at threshold velocity the entire game will result in this
     [SerializeField] private float thresholdVelocity = 3f; // max speed after which reward is maxed
 
-    // Bools
-    [HideInInspector] public bool hasSpottedGoal;
-    [HideInInspector] public bool hasEnteredGoal;
-    [HideInInspector] public bool hasBeenWithinBounds;
-    [HideInInspector] public bool isEnteringGoal;
-
-    private float previousDistance;
+    private float previousDistance; // TODO: Remove redundant field
 
     // =====================================================
 
@@ -127,6 +137,7 @@ public class SimulationManager : MonoBehaviour {
 
     // UI and Materials =====================================================
 
+    // for colouring the ground of the environment depending on whether the agent parked successfully or not
     [Header("UI and Materials")]
 
     [SerializeField] private Material neutral;
@@ -136,6 +147,7 @@ public class SimulationManager : MonoBehaviour {
 
     // Enums =====================================================
 
+    // tags
     private static string PARKING_GOAL = "ParkingGoal";
     private static string PARKED_CAR = "ParkedCar";
     private static string ROAD = "Road";
@@ -143,6 +155,7 @@ public class SimulationManager : MonoBehaviour {
     private static string EDGE = "Edge";
 
     // Subscriptions =====================================================
+    // to allow the game to listen to collision events between the car and any object
 
     private void SubscribeToAgentEvents() {
         carAgent.EpisodeBeginEvent += OnEpisodeBeginEvent;
@@ -165,8 +178,8 @@ public class SimulationManager : MonoBehaviour {
 
     // Initialisation =====================================================
 
+    // link all required components to allow real-time communication
     private void Awake() {
-        // populating components
         carAgent = carAgentObj.GetComponent<CarAgent>();
         carController = carAgentObj.GetComponent<CarController>();
         carRigidbody = carAgentObj.GetComponent<Rigidbody>();
@@ -181,7 +194,7 @@ public class SimulationManager : MonoBehaviour {
         behaviorParameters = carAgentObj.GetComponent<BehaviorParameters>();
 
         // configuration
-        carAgent.MaxStep = 0; // let it run indefinitely, check stepcount in this script instead
+        carAgent.MaxStep = 0; // let it run indefinitely, manage stepcount in this script instead
         behaviorParameters.BehaviorType = useHeuristics ? BehaviorType.HeuristicOnly : BehaviorType.Default;
 
         // agent events
@@ -193,6 +206,13 @@ public class SimulationManager : MonoBehaviour {
 
     // Episode Management =====================================================
 
+    // reset game state, gets called every time a new episode begins
+    private void OnEpisodeBeginEvent() {
+        ResetFlags();
+        ResetSimulation();
+    }
+    
+    // reset reward state
     private void ResetFlags() {
         hasSpottedGoal = false;
         hasEnteredGoal = false;
@@ -204,32 +224,14 @@ public class SimulationManager : MonoBehaviour {
         previousDistance = GetGoalDistance();
     }
 
-    private void ResetParkingLots() {
-        parkingLots.ResetParkingLots();
-    }
-
-    // Should be able to specify spacing between cars and how many to spawn
-    // handles randomly placing the lot
-    private void SetupCarsPosition() {
-        Debug.LogError("Not implemented!");
-    }
-
-    private void SetupCars() {
-        // do not teardown, just reset all rotations, reposition
-        int goalPositionIndex = Random.Range(0, parkingLotsObj.transform.childCount - 1);
-
-        if (randomSpawnCars) {
-            SetupCarsPosition();
-        } else {
-            ResetParkingLots();
-        }
-    }
-
+    // reset object positions
     private void ResetSimulation() {
+
+        // handles placement of parked cars
         SetupCars();
 
+        // handles placment of agent's car
         carRigidbody.velocity = Vector3.zero;
-
         if (randomAgentSpawn) {
             Quaternion finalRotation = GetAgentRotation();
             Vector3 finalPosition = GetAgentRandomPosition();
@@ -240,24 +242,93 @@ public class SimulationManager : MonoBehaviour {
         
     }
 
-    private void OnEpisodeBeginEvent() {
-        ResetFlags();
-        ResetSimulation();
+    private void SetupCars() {
+        // do not teardown, just reset all rotations, reposition
+        int goalPositionIndex = Random.Range(0, parkingLotsObj.transform.childCount - 1);
+
+        if (randomSpawnCars) {
+            // not implemented
+            SetupCarsPosition(); // spawn cars according to predefined rules
+        } else {
+            // default
+            ResetParkingLots(); // reset the cars to how they were placed by hand in the editor
+        }
     }
 
+    // TODO: Not implemented
+    // Should be able to specify spacing between cars and how many to spawn
+    // handles randomly placing the lot and the distance between cars
+    private void SetupCarsPosition() {
+        Debug.LogError("Not implemented!");
+    }
+
+    // Resets the position of all cars in the parking lot
+    private void ResetParkingLots() {
+        parkingLots.ResetParkingLots();
+    }
+
+    // Time-Bound Management =====================================================
+    // Functions here are executed every step of the episode
+
+    // TODO: Move into FixedUpdate method
     // executed each agent step
     private void OnAfterActionReceivedEvent() {
-
         // time-bound penalties
-
         if (isOffroad) {
             carAgent.AddReward(-maxOffroadPenalty / maxSteps);
         }
-
         carAgent.AddReward(-maxTimePenalty / maxSteps);
-
     }
 
+    // executed each agent step
+    private void FixedUpdate() {
+
+        // encourage movement
+        // experimental, do not enable yet
+        if (enableVelocity) {
+            RewardVelocity();
+        }
+
+        // encourage proximity to goal
+        // assign reward each step for how close the agent is to the goal
+        if (enableProximity) {
+            RewardProximity();
+        }
+
+        // assign a reward once when the goal is spotted
+        if (enableSpottedGoal) {
+            RewardSpottedGoal();
+        }
+
+        // assign trickle rewards for each step spent inside the bounds of the goal
+        if (enableStayingInGoal) {
+            RewardStayingInGoal();
+        }
+
+        // begin the timer for how long the car needs to stay in the goal bounds before it
+        // successfully completes the episode
+        if (IsWithinBounds()) {
+            validParkingTimer += Time.fixedDeltaTime;
+        } else {
+            validParkingTimer = 0;
+        }
+
+        // if the timer is done, the agent wins
+        if (validParkingTimer > requiredParkingDuration) {
+            EndEpisodeSuccess(); // positional and angular position rewards are assigned
+        } else if (carAgent.StepCount >= maxSteps || GetGoalDistance() > maxAllowedDistance) {
+            // no penalties or rewards are assigned, unless the car hasexceeded the max allowable distance
+            EndEpisodeFailure();
+        }
+
+        // TODO: Remove redundant field
+        previousDistance = GetGoalDistance();
+    }
+
+    // Reward and Penalty Logic =====================================================
+    // these functions check game state every step to assign rewards
+
+    // experimental
     private void RewardVelocity() {
         carAgent.AddReward(CalculateVelocityReward());
     }
@@ -284,41 +355,6 @@ public class SimulationManager : MonoBehaviour {
         }
     }
 
-    private void FixedUpdate() {
-
-        // encourage movement
-        if (enableVelocity) {
-            RewardVelocity();
-        }
-
-        // encourage proximity to goal
-        if (enableProximity) {
-            RewardProximity();
-        }
-
-        if (enableSpottedGoal) {
-            RewardSpottedGoal();
-        }
-
-        if (enableStayingInGoal) {
-            RewardStayingInGoal();
-        }
-
-        if (IsWithinBounds()) {
-            validParkingTimer += Time.fixedDeltaTime;
-        } else {
-            validParkingTimer = 0;
-        }
-
-        if (validParkingTimer > requiredParkingDuration) {
-            EndEpisodeSuccess();
-        } else if (carAgent.StepCount >= maxSteps || GetGoalDistance() > maxAllowedDistance) {
-            EndEpisodeFailure();
-        }
-
-        previousDistance = GetGoalDistance();
-    }
-
     private void AssignFinalRewards() {
         Debug.Log("Reward: Goal Distance");
         carAgent.AddReward(CalculatePrecisionReward());
@@ -332,6 +368,9 @@ public class SimulationManager : MonoBehaviour {
             carAgent.AddReward(-exceedDistancePenalty);
         }
     }
+
+    // End-of-Episode Logic =====================================================
+    // these functions run based on final game state to assign rewards and penalties
 
     private void EndEpisodeFailure() {
         AssignFinalPenalties();
@@ -347,8 +386,26 @@ public class SimulationManager : MonoBehaviour {
         SetResultMaterial(success);
     }
 
-    // Reward Calculation =====================================================
+    // Precision Reward Functions =====================================================
 
+    // Positional Precision Function
+    private float RProx(float rthresh, float proxmax, float r) {
+        // -Rproxmax * (x/rthresh - 1)^3
+        float reward = -proxmax * Mathf.Pow((r / rthresh) - 1, 3);
+        return Mathf.Clamp(reward, 0, proxmax);
+    }
+
+    // Angular Precision Function
+    private float RAlign(float alignmax, float angleDifference) {
+        float reward = Mathf.Cos(angleDifference) * alignmax;
+        return Mathf.Abs(reward);
+    }
+
+    // Reward Calculations =====================================================
+    // Customised calls to the precision reward functions with predefined parameters for scaling
+    // used to abstract heavy math from main gaim logic
+
+    // experimental
     public float CalculateVelocityReward() {
         float velocity = carRigidbody.velocity.magnitude;
         float velocityMultiplier = maxVelocityReward / (thresholdVelocity * maxSteps);
@@ -374,18 +431,8 @@ public class SimulationManager : MonoBehaviour {
         return RAlign(maxAlignmentReward, GetGoalAngleDifference());
     }
 
-    private float RProx(float rthresh, float proxmax, float r) {
-        // -Rproxmax * (x/rthresh - 1)^3
-        float reward = -proxmax * Mathf.Pow((r / rthresh) - 1, 3);
-        return Mathf.Clamp(reward, 0, proxmax);
-    }
-
-    private float RAlign(float alignmax, float angleDifference) {
-        float reward = Mathf.Cos(angleDifference) * alignmax;
-        return Mathf.Abs(reward);
-    }
-
-    // Game Calculations =====================================================
+    // Game State Calculations =====================================================
+    // handles velocity, rotation, position calculations to check and update game-state
 
     private Quaternion GetAgentRotation() {
         Quaternion rotation = Quaternion.identity;
@@ -464,6 +511,8 @@ public class SimulationManager : MonoBehaviour {
     }
 
     // Collision Detection =====================================================
+    // functions here are called whenever a collision happens in game
+    // checks are made to determine which game-state to transition to
 
     public bool IsSpottingGoal() {
         //foreach (RayPerceptionSensor ray in carRays) {
